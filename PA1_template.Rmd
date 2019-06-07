@@ -1,25 +1,76 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "Rizli Anshari"
+date: "June 7, 2019"
+output: md_document
 ---
 
+```{r, echo = FALSE, include = FALSE}
+library(UsingR)
+library(dplyr)
+library(mice)
+library(timeDate)
+library(sqldf)
 
-## Loading and preprocessing the data
+options(scipen=10)
+set.seed(123)
+```
+## Load the Data
+```{r, echo = TRUE}
+setwd("C:/Users/avria/Google Drive/!LEARNING/Data Science - 05.Reproducible Research")
+mydata <- read.csv("activity.csv", header = T, stringsAsFactors = F)
+```
 
+## Histogram Steps Taken Each Day
+```{r, echo = TRUE}
+hist(mydata$steps, col="gray", xlab="Steps", main="Steps Taken Each Day")
+```
 
+## Median
+```{r, echo = TRUE}
+median(mydata$steps, na.rm = TRUE) 
+```
 
-## What is mean total number of steps taken per day?
+## Mean
+```{r, echo = TRUE}
+mean(mydata$steps, na.rm = TRUE) 
+```
 
+## Time series plot of the average number of steps taken
+```{r, echo = TRUE, message=FALSE, warning=FALSE}
+mydata2 <- aggregate(mydata$steps,na.rm= TRUE, list(mydata$date), mean)
+ggplot(mydata2, aes(Group.1, x, group = 1)) + geom_line() + xlab("Date") + ylab("Average Steps")
+```
 
+## The 5-minute interval that, on average, contains the maximum number of steps
+```{r, echo = TRUE, message=FALSE, warning=FALSE}
+mydata3 <- aggregate(mydata$steps, na.rm= TRUE, list(mydata$interval), max)
+ggplot(mydata3, aes(Group.1, x, group = 1)) + geom_line() + xlab("Interval") + ylab("Maximum Steps")
+```
 
-## What is the average daily activity pattern?
+## Imputing Missing Value
+## Shows Chart Missing Values 
+```{r, echo = TRUE, message=FALSE, warning=FALSE}
+md.pattern(mydata)
+```
 
+## Fill the Missing Value
+```{r, echo = TRUE, message=FALSE, warning=FALSE, results = 'hide'}
+tempData <- mice(mydata,m=5,maxit=5,meth='pmm',seed=500)
+completedData <- complete(tempData,1)
+```
 
+```{r, echo = TRUE, message=FALSE, warning=FALSE}
+summary(completedData)
+```
+The median is still the same, 0, however mean with imputed value is 38.11 compare with 37.38 without imputed value. The impact of imputed missing data will increase total number of steps.
 
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+## Activity patterns between weekdays and weekends
+```{r, echo = TRUE, message=FALSE, warning=FALSE, results = 'hide'}
+weekend <- isWeekend(mydata$date, wday = 1:5)
+mydata4 <- cbind(completedData,weekend)
+x <- sqldf("select interval,weekend,avg(steps) as steps_avg from mydata4 group by interval, weekend")
+```
+```{r, echo = TRUE, message=FALSE, warning=FALSE}
+ggplot(x, aes(interval, steps_avg, group = weekend)) + geom_line(aes(colour = factor(weekend)), size = 1) + xlab("Interval") + ylab("Average Steps") 
+```
