@@ -1,13 +1,25 @@
-Load the Data
--------------
+Loading and Processing the Data
+-------------------------------
 
     setwd("C:/Users/avria/Google Drive/!LEARNING/Data Science - 05.Reproducible Research")
-    mydata <- read.csv("activity.csv", header = T, stringsAsFactors = F)
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",destfile="activity.zip")
+    unzip("activity.zip")
+    mydata <- read.csv("activity.csv", header = TRUE)
+    head(mydata)
+
+    ##   steps       date interval
+    ## 1    NA 2012-10-01        0
+    ## 2    NA 2012-10-01        5
+    ## 3    NA 2012-10-01       10
+    ## 4    NA 2012-10-01       15
+    ## 5    NA 2012-10-01       20
+    ## 6    NA 2012-10-01       25
 
 Histogram Steps Taken Each Day
 ------------------------------
 
-    hist(mydata$steps, col="gray", xlab="Steps", main="Steps Taken Each Day")
+    x <- sqldf("select date,sum(steps) as steps_total from mydata where steps not in ('NA') group by date")
+    hist(x$steps, col="gray", xlab="Steps", main="Steps Taken Each Day")
 
 ![](PA1_template_files/figure-markdown_strict/unnamed-chunk-3-1.png)
 
@@ -28,18 +40,28 @@ Mean
 Time series plot of the average number of steps taken
 -----------------------------------------------------
 
-    mydata2 <- aggregate(mydata$steps,na.rm= TRUE, list(mydata$date), mean)
-    ggplot(mydata2, aes(Group.1, x, group = 1)) + geom_line() + xlab("Date") + ylab("Average Steps")
+    mydata2 <- sqldf("select interval,avg(steps) as steps_avg from mydata where steps not in ('NA') group by interval")
+    ggplot(mydata2, aes(interval, steps_avg)) + geom_line() + xlab("Interval") + ylab("Average Steps")
 
 ![](PA1_template_files/figure-markdown_strict/unnamed-chunk-6-1.png)
 
 The 5-minute interval that, on average, contains the maximum number of steps
 ----------------------------------------------------------------------------
 
-    mydata3 <- aggregate(mydata$steps, na.rm= TRUE, list(mydata$interval), max)
-    ggplot(mydata3, aes(Group.1, x, group = 1)) + geom_line() + xlab("Interval") + ylab("Maximum Steps")
+    mydata3 <- sqldf("select interval,max(steps) as steps_max from mydata where steps not in ('NA') group by interval")
+    ggplot(mydata3, aes(interval, steps_max)) + geom_line() + xlab("Interval") + ylab("Maximum Steps")
 
 ![](PA1_template_files/figure-markdown_strict/unnamed-chunk-7-1.png)
+
+    head(mydata3)
+
+    ##   interval steps_max
+    ## 1        0        47
+    ## 2        5        18
+    ## 3       10         7
+    ## 4       15         8
+    ## 5       20         4
+    ## 6       25        52
 
 Imputing Missing Value
 ----------------------
@@ -59,22 +81,28 @@ Shows Chart Missing Values
 Fill the Missing Value
 ----------------------
 
+I assumed that the missing data are Missing at Random (MAR), which means
+that the probability that a value is missing depends only on observed
+value and can be predicted using them. It imputes data on a variable by
+variable basis by using regression analysis to predict the value.
+
     tempData <- mice(mydata,m=5,maxit=5,meth='pmm',seed=500)
     completedData <- complete(tempData,1)
 
     summary(completedData)
 
-    ##      steps            date              interval     
-    ##  Min.   :  0.00   Length:17568       Min.   :   0.0  
-    ##  1st Qu.:  0.00   Class :character   1st Qu.: 588.8  
-    ##  Median :  0.00   Mode  :character   Median :1177.5  
-    ##  Mean   : 38.11                      Mean   :1177.5  
-    ##  3rd Qu.: 12.25                      3rd Qu.:1766.2  
-    ##  Max.   :806.00                      Max.   :2355.0
+    ##      steps                date          interval     
+    ##  Min.   :  0.00   2012-10-01:  288   Min.   :   0.0  
+    ##  1st Qu.:  0.00   2012-10-02:  288   1st Qu.: 588.8  
+    ##  Median :  0.00   2012-10-03:  288   Median :1177.5  
+    ##  Mean   : 33.11   2012-10-04:  288   Mean   :1177.5  
+    ##  3rd Qu.:  0.00   2012-10-05:  288   3rd Qu.:1766.2  
+    ##  Max.   :806.00   2012-10-06:  288   Max.   :2355.0  
+    ##                   (Other)   :15840
 
 The median is still the same, 0, however mean with imputed value is
-38.11 compare with 37.38 without imputed value. The impact of imputed
-missing data will increase total number of steps.
+33.11 compare with 37.38 without imputed value. The impact of imputed
+missing data will decrease total number of steps.
 
 Activity patterns between weekdays and weekends
 -----------------------------------------------

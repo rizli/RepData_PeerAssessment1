@@ -1,8 +1,8 @@
 ---
-title: "PA1_template"
+title: "Movement Monitoring Analysis"
 author: "Rizli Anshari"
 date: "June 7, 2019"
-output: md_document
+output: html_document
 ---
 
 ```{r, echo = FALSE, include = FALSE}
@@ -11,19 +11,23 @@ library(dplyr)
 library(mice)
 library(timeDate)
 library(sqldf)
-
 options(scipen=10)
 set.seed(123)
 ```
-## Load the Data
+
+## Loading and Processing the Data
 ```{r, echo = TRUE}
 setwd("C:/Users/avria/Google Drive/!LEARNING/Data Science - 05.Reproducible Research")
-mydata <- read.csv("activity.csv", header = T, stringsAsFactors = F)
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",destfile="activity.zip")
+unzip("activity.zip")
+mydata <- read.csv("activity.csv", header = TRUE)
+head(mydata)
 ```
 
 ## Histogram Steps Taken Each Day
 ```{r, echo = TRUE}
-hist(mydata$steps, col="gray", xlab="Steps", main="Steps Taken Each Day")
+x <- sqldf("select date,sum(steps) as steps_total from mydata where steps not in ('NA') group by date")
+hist(x$steps, col="gray", xlab="Steps", main="Steps Taken Each Day")
 ```
 
 ## Median
@@ -38,14 +42,15 @@ mean(mydata$steps, na.rm = TRUE)
 
 ## Time series plot of the average number of steps taken
 ```{r, echo = TRUE, message=FALSE, warning=FALSE}
-mydata2 <- aggregate(mydata$steps,na.rm= TRUE, list(mydata$date), mean)
-ggplot(mydata2, aes(Group.1, x, group = 1)) + geom_line() + xlab("Date") + ylab("Average Steps")
+mydata2 <- sqldf("select interval,avg(steps) as steps_avg from mydata where steps not in ('NA') group by interval")
+ggplot(mydata2, aes(interval, steps_avg)) + geom_line() + xlab("Interval") + ylab("Average Steps")
 ```
 
 ## The 5-minute interval that, on average, contains the maximum number of steps
 ```{r, echo = TRUE, message=FALSE, warning=FALSE}
-mydata3 <- aggregate(mydata$steps, na.rm= TRUE, list(mydata$interval), max)
-ggplot(mydata3, aes(Group.1, x, group = 1)) + geom_line() + xlab("Interval") + ylab("Maximum Steps")
+mydata3 <- sqldf("select interval,max(steps) as steps_max from mydata where steps not in ('NA') group by interval")
+ggplot(mydata3, aes(interval, steps_max)) + geom_line() + xlab("Interval") + ylab("Maximum Steps")
+head(mydata3)
 ```
 
 ## Imputing Missing Value
@@ -55,6 +60,9 @@ md.pattern(mydata)
 ```
 
 ## Fill the Missing Value
+
+I assumed that the missing data are Missing at Random (MAR), which means that the probability that a value is missing depends only on observed value and can be predicted using them. It imputes data on a variable by variable basis by using regression analysis to predict the value.
+
 ```{r, echo = TRUE, message=FALSE, warning=FALSE, results = 'hide'}
 tempData <- mice(mydata,m=5,maxit=5,meth='pmm',seed=500)
 completedData <- complete(tempData,1)
@@ -63,7 +71,7 @@ completedData <- complete(tempData,1)
 ```{r, echo = TRUE, message=FALSE, warning=FALSE}
 summary(completedData)
 ```
-The median is still the same, 0, however mean with imputed value is 38.11 compare with 37.38 without imputed value. The impact of imputed missing data will increase total number of steps.
+The median is still the same, 0, however mean with imputed value is 33.11 compare with 37.38 without imputed value. The impact of imputed missing data will decrease total number of steps.
 
 ## Activity patterns between weekdays and weekends
 ```{r, echo = TRUE, message=FALSE, warning=FALSE, results = 'hide'}
